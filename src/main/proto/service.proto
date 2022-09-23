@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package com.zuzex.io;
+import "descriptor.proto";
+
+service IoProtoService {
+  rpc save (GrpcIoData) returns (GrpcIoResultExecution) {}
+
+  rpc read (GrpcIoKey) returns (GrpcIoData) {}
+
+  rpc delete (GrpcIoKey) returns (GrpcIoResultExecution) {}
+}
