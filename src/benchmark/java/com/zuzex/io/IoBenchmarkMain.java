@@ -1,43 +1,68 @@
 package com.zuzex.io;
 
+import com.zuzex.io.config.BenchmarkState;
+import lombok.SneakyThrows;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
-import java.util.List;
-import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
+import static com.zuzex.io.config.IoClassInitialization.ioGrpcService;
 
 
-@BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@State(Scope.Benchmark)
+@BenchmarkMode(Mode.AverageTime)
 public class IoBenchmarkMain {
 
-    @State(Scope.Benchmark)
-    public static class BenchmarkState {
-        @Param({"1000000", "10000000", "100000000"})
-        public int listSize;
 
-        public List<Integer> testList;
+    @SneakyThrows
+    public static void main(String[] args) {
+        org.openjdk.jmh.Main.main(args);
+     /*   Options opt = new OptionsBuilder()
+                .include(IoBenchmarkMain.class.getSimpleName())
+                .forks(1)
+                .build();
+        new Runner(opt).run();*/
+    }
 
-        @Setup(Level.Trial)
-        public void setUp() {
-            testList = new Random()
-                    .ints()
-                    .limit(listSize)
-                    .boxed()
-                    .collect(Collectors.toList());
+    @Benchmark
+    @Fork(value = 2)
+    @Measurement(iterations = 2, time = 1)
+    @Warmup(iterations = 2, time = 1)
+    public void loopWrite(Blackhole bh, BenchmarkState state) {
+        for (int i = 0; i < state.count; i++) {
+            var test = ioGrpcService.save(Descriptor.GrpcIoData.newBuilder()
+                    .setKey(state.list.get(i))
+                    .setValue(String.valueOf(UUID.randomUUID()))
+                    .build());
+            bh.consume(test);
         }
     }
 
-    @Fork(value = 1, warmups = 1)
-    @Warmup(iterations = 1)
     @Benchmark
-    @BenchmarkMode(Mode.AverageTime)
-    public void longStreamSum(Blackhole blackHole, BenchmarkState state) {
-        long sum = state.testList.parallelStream().mapToLong(s -> s).sum();
-        blackHole.consume(sum);
+    @Fork(value = 2)
+    @Measurement(iterations = 2, time = 1)
+    @Warmup(iterations = 2, time = 1)
+    public void loopRead(Blackhole bh, BenchmarkState state) {
+        for (int i = 0; i < state.count; i++) {
+            var test = ioGrpcService.read(Descriptor.GrpcIoKey.newBuilder()
+                    .setKey(state.randomKeyForReadAndWrite)
+                    .build());
+            bh.consume(test);
+        }
     }
 
+    @Benchmark
+    @Fork(value = 2)
+    @Measurement(iterations = 2, time = 1)
+    @Warmup(iterations = 2, time = 1)
+    public void loopDelete(Blackhole bh, BenchmarkState state) {
+        for (int i = 0; i < state.count; i++) {
+            var test = ioGrpcService.delete(Descriptor.GrpcIoKey.newBuilder()
+                    .setKey(state.randomKeyForDelete)
+                    .build());
+            bh.consume(test);
+        }
+    }
 }

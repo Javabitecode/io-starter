@@ -38,6 +38,4 @@ public class IoSimpleService implements IoService {
                 .setKey(String.valueOf(key))
                 .build());
     }
-
-
 }
